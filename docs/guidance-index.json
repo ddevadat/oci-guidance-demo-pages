@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "index_id": "published-guidance-index",
+  "published_guidance_versions": [
+    {
+      "guidance_version": "2026.04.24",
+      "artifact_location": "artifacts/guidance-2026.04.24.zip",
+      "artifact_digest": "sha256:e4250974355d280bf4c7120fcd67eeba18b0183baa54adb615ee5a0a04fe981d",
+      "published_at": "2026-04-24T03:28:29.513445Z",
+      "provenance_summary": "team-authored guidance hosted on GitHub Pages",
+      "metadata_summary": {
+        "guidance_corpus_id": "oci-expert-guidance",
+        "document_count": 2,
+        "generator_version": "0.1.0",
+        "artifact_files": [
+          "guidance-documents.json",
+          "guidance-metadata.json",
+          "artifact-manifest.json"
+        ]
+      }
+    }
+  ]
+}
