@@ -5,8 +5,8 @@
     {
       "guidance_version": "2026.04.25",
       "artifact_location": "artifacts/guidance-2026.04.25.zip",
-      "artifact_digest": "sha256:6e43d7e7968f71d43e4a769a60176eccefd3a77016b111256a2ed7f6c9077aeb",
-      "published_at": "2026-04-27T07:27:40.398799Z",
+      "artifact_digest": "sha256:a63122167894b68ab555e301247b5fed8029b9a16ced0760889888956168d7e4",
+      "published_at": "2026-04-27T21:38:12.191926Z",
       "provenance_summary": "team-authored guidance hosted on GitHub Pages",
       "metadata_summary": {
         "guidance_corpus_id": "oci-expert-guidance",

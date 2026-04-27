@@ -13,19 +13,37 @@ metadata:
 ---
 ## UpdateRow basics
 
-For OCI NoSQL row writes, prefer:
+Use this document as a routing guide when converting AWS Lambda Python code that uses DynamoDB through `boto3`.
 
-- `oci.nosql.NosqlClient`
-- `NosqlClient.update_row(table_name_or_id, update_row_details, **kwargs)`
-- `oci.nosql.models.UpdateRowDetails`
+Do not treat DynamoDB request shapes as directly compatible with OCI NoSQL. Use this sheet to choose focused MCP calls, then fetch the exact SDK operation and model docs needed for the source operations found in the Lambda.
 
-When converting DynamoDB-style code, do not assume the AWS request shape maps directly to OCI NoSQL.
+## Core MCP routing
+
+| Need | MCP tool | Arguments |
+| --- | --- | --- |
+| NoSQL service overview | `get_service` | `service_ref: nosql` |
+| NoSQL client docs | `get_service_client` | `service_ref: nosql`, `client_ref: oci.nosql.NosqlClient` |
+| Available NoSQL clients | `list_service_clients` | `service_ref: nosql` |
+| Available NoSQL models | `list_service_models` | `service_ref: nosql` |
+
+## DynamoDB operation routing
+
+| DynamoDB pattern | OCI NoSQL target | Required MCP calls | Key guidance |
+| --- | --- | --- | --- |
+| `put_item(...)` | `NosqlClient.update_row(...)` | `get_document: oci.nosql.python.update_row`; `get_service_model: oci.nosql.models.UpdateRowDetails` | Use `UpdateRowDetails(value=...)`. For `attribute_not_exists(...)`, consider `option: IF_ABSENT` and add a note for unsupported condition semantics. |
+| `get_item(...)` | `NosqlClient.get_row(...)` | `get_document: oci.nosql.python.get_row` | Convert DynamoDB typed key maps to OCI NoSQL primary-key values. Verify key order and table schema. |
+| `delete_item(...)` | `NosqlClient.delete_row(...)` | `get_document: oci.nosql.python.delete_row` | Convert DynamoDB key maps to OCI NoSQL key values. Include compartment context when docs or table-name usage require it. |
+| `update_item(...)` | Usually `NosqlClient.update_row(...)` | `get_document: oci.nosql.python.update_row`; `get_service_model: oci.nosql.models.UpdateRowDetails` | DynamoDB `UpdateExpression` is not a direct shape match. Prefer explicit row-value updates and add a review note. |
+| `query(...)` | `NosqlClient.query(...)` | `get_document: oci.nosql.python.query`; `get_service_model: oci.nosql.models.QueryDetails` | DynamoDB `KeyConditionExpression`, indexes, and expression attributes need careful translation. Add a review note. |
+| `scan(...)` | Review required | `search_documents: nosql scan query python`; `get_document: oci.nosql.python.query` if applicable | Do not invent full-table scan behavior. Mark unclear mappings as review-required. |
+| `batch_write_item(...)` | Review required | `search_documents: nosql update row batch python`; `list_service_models: nosql` | Do not invent batch API calls. Prefer explicit limitation notes unless docs confirm a target. |
+| `batch_get_item(...)` | Review required | `search_documents: nosql get row batch python`; `list_service_models: nosql` | Do not invent batch API calls. Prefer explicit limitation notes unless docs confirm a target. |
 
 ## Compartment rule
 
-If `table_name_or_id` is a table name rather than an OCID, include `compartment_id` in `UpdateRowDetails`.
+If `table_name_or_id` is a table name rather than an OCID, include `compartment_id` inside `UpdateRowDetails` for row writes.
 
-If `table_name_or_id` is already an OCID, compartment context may not be required.
+If `table_name_or_id` starts with `ocid1.`, compartment config may be omitted unless the exact operation docs require it.
 
 This is a common conversion pitfall for generated OCI Functions.
 
@@ -60,8 +78,6 @@ response = client.update_row(
     table_name_or_id=table_name_or_id,
     update_row_details=update_details,
 )
-
-print(response.data)
 ```
 
 #### Incorrect example
@@ -73,6 +89,28 @@ client.update_row(
     update_row_details=update_details,
 )
 ```
+
+## Required generated code properties
+
+Generated `func.py` must:
+
+- use `oci.nosql.NosqlClient`
+- use resource principal auth in OCI Functions
+- remove executable `boto3` DynamoDB client code
+- avoid `oci.nosql.NoSQLClient`
+- avoid DynamoDB typed request maps like `{"S": ...}` in final OCI calls
+- return explicit non-2xx errors or raise on OCI SDK failures; do not silently swallow exceptions
+
+Generated `requirements.txt` must:
+
+- include `oci`
+- remove `boto3` when DynamoDB was the only AWS SDK dependency
+
+Generated notes must mention:
+
+- table name vs table OCID assumption
+- DynamoDB condition/update expression limitations
+- primary key and table schema assumptions
 
 ## Supported UpdateRowDetails fields
 
@@ -88,31 +126,4 @@ Use documented fields such as:
 - `identity_cache_size`
 - `is_exact_match`
 
-Do not invent undocumented fields.
-
-## Common mistakes to avoid
-
-- Do not use `oci.nosql.NoSQLClient`; use `oci.nosql.NosqlClient`
-- Do not add `is_upsert` to `UpdateRowDetails`
-- Do not put `compartment_id` on `update_row(...)`
-- Do not omit compartment context when the table reference is a plain table name
-- Do not carry DynamoDB-specific helper names or request models into OCI NoSQL code
-
-## Suggested function config
-
-For OCI Functions, common config keys may look like:
-
-- `ORDERS_TABLE`
-- `ORDERS_TABLE_COMPARTMENT`
-
-If the table reference is an OCID instead of a table name, the compartment variable may not be needed.
-
-## Conversion hint
-
-When translating DynamoDB writes to OCI NoSQL, keep the generated code focused on:
-
-- resource principal authentication
-- `NosqlClient.update_row(...)`
-- `UpdateRowDetails(...)`
-- placing `compartment_id` inside the model when the table reference is not an OCID
-- preserving only the minimum compatibility env vars required by the source application
+Do not invent undocumented fields such as `is_upsert`.
